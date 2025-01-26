@@ -5,9 +5,11 @@ const {
     ButtonBuilder,
     ButtonStyle,
     ComponentType,
+    MessageFlags,
 } = require("discord.js");
 const { generateRandomHexColor } = require("../../../utils/helpers");
 const { getConfig } = require("../../../database/models/config");
+const { simpleEmbed } = require("../../../embeds/generalEmbeds");
 
 
 module.exports = {
@@ -15,6 +17,10 @@ module.exports = {
         .setName("help")
         .setDescription("Displays the list of commands with pagination."),
     async execute(interaction) {
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        try {
 
         const PREFIX = getConfig("prefix");
 
@@ -125,7 +131,7 @@ module.exports = {
         };
 
         // Initial reply
-        const message = await interaction.reply({
+        const message = await interaction.editReply({
             embeds: [createEmbed()],
             components: [createButtons()],
             fetchReply: true,
@@ -139,10 +145,11 @@ module.exports = {
 
         collector.on("collect", async (btnInteraction) => {
             if (btnInteraction.user.id !== interaction.user.id) {
-                return btnInteraction.reply({
-                    content: "You cannot interact with this button.",
-                    ephemeral: true,
+                const errorEmbed = simpleEmbed({
+                    description: "You cannot interact with this button.",
+                    color: "Red",
                 });
+                return btnInteraction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
             }
 
             switch (btnInteraction.customId) {
@@ -177,5 +184,14 @@ module.exports = {
                 components: [],
             });
         });
+
+    } catch (err) {
+        console.error(err);
+        const errorEmbed = simpleEmbed({
+            description: "An error occurred while executing this command.",
+            color: "Red"
+        });
+        return interaction.editReply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
+    }
     },
 };
