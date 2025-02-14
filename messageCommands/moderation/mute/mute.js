@@ -164,6 +164,10 @@ module.exports = {
                     AttachFiles: false,
                     EmbedLinks: false,
                     UseApplicationCommands: false,
+                }).catch((error) => {
+                    console.log("Caught Error in Permission Overwrite");
+                    console.log(error);
+                    console.log(channel);
                 });
             });
 
