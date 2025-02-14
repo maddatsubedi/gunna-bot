@@ -9,6 +9,33 @@ const { ticketChannelRegex } = require('../../utils/regex');
 
 const CUSTOM_IDS = ['create-ticket', 'close-ticket', 'delete-ticket', 'open-ticket'];
 
+const channelEditTracker = new Map();
+
+const RATE_LIMIT_COUNT = 2; // Max 2 edits
+const RATE_LIMIT_WINDOW = 10 * 60 * 1000; // 10 minutes
+const SAFE_MARGIN_WINDOW = 10000; // 10 seconds
+const SAFE_RATE_LIMIT_WINDOW = RATE_LIMIT_WINDOW + SAFE_MARGIN_WINDOW;
+
+function isRateLimited(channelId) {
+	const now = Date.now();
+	const edits = channelEditTracker.get(channelId) || [];
+
+	const recentEdits = edits.filter(timestamp => now - timestamp < SAFE_RATE_LIMIT_WINDOW);
+
+	channelEditTracker.set(channelId, recentEdits);
+
+	return recentEdits.length >= RATE_LIMIT_COUNT;
+}
+
+function recordEdit(channelId) {
+	const now = Date.now();
+	const edits = channelEditTracker.get(channelId) || [];
+
+	// Add current timestamp and update the map
+	edits.push(now);
+	channelEditTracker.set(channelId, edits);
+}
+
 module.exports = {
 	name: Events.InteractionCreate,
 	async execute(interaction) {
@@ -169,6 +196,14 @@ module.exports = {
 						return await interaction.editReply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
 					}
 
+					if (isRateLimited(ticketChannel.id)) {
+						const errorEmbed = simpleEmbed({
+							description: `**Ticket edit limit reached**\n\n> Maximum allowed edit is 2 every 10 minutes`,
+							color: 'Red',
+						});
+						return await interaction.editReply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
+					}
+
 					const infoEmbed = simpleEmbed({
 						description: `**Ticket closed by <@${user.id}>**`,
 						color: 'Orange',
@@ -198,6 +233,7 @@ module.exports = {
 						.addComponents(openButton, deleteButton);
 
 					await ticketChannel.edit({ name: `${ticketChannel.name}-closed` });
+					recordEdit(ticketChannel.id);
 
 					await ticketChannel.send({
 						embeds: [infoEmbed],
@@ -240,6 +276,14 @@ module.exports = {
 						return await interaction.editReply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
 					}
 
+					if (isRateLimited(ticketChannel.id)) {
+						const errorEmbed = simpleEmbed({
+							description: `**Ticket edit limit reached**\n\n> Maximum allowed edit is 2 every 10 minutes`,
+							color: 'Red',
+						});
+						return await interaction.editReply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
+					}
+
 					if (ticketUser) {
 						await ticketChannel.permissionOverwrites.edit(ticketUser.id, {
 							ViewChannel: true,
@@ -255,6 +299,7 @@ module.exports = {
 					});
 
 					await ticketChannel.edit({ name: ticketChannel.name.replace('-closed', '') });
+					recordEdit(ticketChannel.id);
 
 					const finalEmbed = simpleEmbed({
 						description: `**Ticket opened successfully**`,

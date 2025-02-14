@@ -156,7 +156,7 @@ module.exports = {
             }
 
             message.guild.channels.cache.forEach(async (channel) => {
-                await channel.permissionOverwrites.edit(muteRoleId, {
+                await channel.permissionOverwrites?.edit(muteRoleId, {
                     SendMessages: false,
                     Speak: false,
                     AddReactions: false,
@@ -166,8 +166,6 @@ module.exports = {
                     UseApplicationCommands: false,
                 }).catch((error) => {
                     console.log("Caught Error in Permission Overwrite");
-                    console.log(error);
-                    console.log(channel);
                 });
             });
 
