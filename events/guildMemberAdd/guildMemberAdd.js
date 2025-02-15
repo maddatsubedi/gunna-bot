@@ -71,8 +71,7 @@ module.exports = {
             return await channel.send({ content: messageContent, files: [attachment] });
 
         } catch (error) {
-            console.log(error);
+            console.log("Error in guildMemberAdd: ", error);
         }
-
     },
 };
